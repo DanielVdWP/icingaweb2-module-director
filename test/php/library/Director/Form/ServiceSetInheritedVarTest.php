@@ -60,8 +60,8 @@ class ServiceSetInheritedVarTest extends BaseTestCase
             'The Service Set value must be visible as the inherited field value'
         );
         $this->assertSame(
-            (object) [],
-            $host->getOverriddenServiceVars($service->getObjectName()),
+            [],
+            (array) $host->getOverriddenServiceVars($service->getObjectName()),
             'Displaying an inherited value must not create a host-level override'
         );
     }
