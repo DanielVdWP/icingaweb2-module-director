@@ -38,7 +38,8 @@ class ServiceSetInheritedVarTest extends BaseTestCase
 
         // Reproduce the Host -> Service Set -> Service "Modify" form context.
         // The variable is provided by the set, not by a host-level override.
-        $form = IcingaServiceForm::load()->setDb($db);
+        $form = (new \ReflectionClass(IcingaServiceForm::class))->newInstanceWithoutConstructor();
+        $form->setDb($db);
         $form->setHost($host);
         $form->setServiceSet($set);
         $form->setObject($service);
