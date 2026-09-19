@@ -304,6 +304,19 @@ class DirectorDatafield extends DbObjectWithSettings
             }
         }
 
+        // Service Set vars are merged into each member service when rendering the
+        // configuration, but do not belong to the service's own template imports.
+        // Present them as inherited values instead of requiring a redundant host override.
+        if ($inherited === null && $form instanceof IcingaServiceForm) {
+            $set = $form->getServiceSet();
+            if ($set !== null) {
+                $inherited = $set->getResolvedVar($varName);
+                if ($inherited !== null) {
+                    $origin = $set->getObjectName();
+                }
+            }
+        }
+
         if ($inherited === null) {
             $inherited = $object->getInheritedVar($varName);
             if (null !== $inherited) {
