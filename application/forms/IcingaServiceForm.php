@@ -221,6 +221,11 @@ class IcingaServiceForm extends DirectorObjectForm
         return $this->host;
     }
 
+    public function getServiceSet(): ?IcingaServiceSet
+    {
+        return $this->set;
+    }
+
     /**
      * Hint: could be moved elsewhere
      *
