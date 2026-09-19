@@ -1,0 +1,114 @@
+name: Reproduce issue 3117 (Service Set inherited variables)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/3117-service-set-required-vars
+      - repro/3117-service-set-required-vars
+  pull_request:
+    branches:
+      - master
+    paths:
+      - application/forms/IcingaServiceForm.php
+      - library/Director/Objects/DirectorDatafield.php
+      - test/php/library/Director/Form/ServiceSetInheritedVarTest.php
+      - .github/workflows/reproduce-3117.yml
+
+jobs:
+  reproduce:
+    name: Required Service Set variable on host service edit
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mariadb
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: director_test
+          MYSQL_USER: director_test
+          MYSQL_PASSWORD: director_test
+        options: >-
+          --health-cmd "mariadb -s -uroot -proot -e'SHOW DATABASES;' 2> /dev/null | grep director_test > test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306/tcp
+
+    steps:
+      - name: Checkout Director
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: phpunit:9.5
+          extensions: mysql
+
+      - name: Setup Icinga Web
+        run: |
+          git clone --depth 1 https://github.com/Icinga/icingaweb2.git _icingaweb2
+          ln -s "${PWD}" _icingaweb2/modules/director
+
+      - name: Setup libraries
+        run: |
+          composer require --working-dir=_icingaweb2 -n --no-progress mockery/mockery
+          mkdir _libraries
+          git clone --depth 1 -b snapshot/nightly https://github.com/Icinga/icinga-php-library.git _libraries/ipl
+          git clone --depth 1 -b snapshot/nightly https://github.com/Icinga/icinga-php-thirdparty.git _libraries/vendor
+
+      - name: Setup Icingadb
+        run: |
+          git clone --depth 1 https://github.com/Icinga/icingadb-web.git _icingaweb2/modules/icingadb
+          mkdir -p test/config/enabledModules
+          cd _icingaweb2/modules/icingadb
+          ln -s "${PWD}" ../../../test/config/enabledModules/icingadb
+
+      - name: Setup incubator
+        run: |
+          git clone --depth 1 https://github.com/Icinga/icingaweb2-module-incubator _icingaweb2/modules/incubator
+          mkdir -p test/config/enabledModules
+          cd _icingaweb2/modules/incubator
+          ln -s "${PWD}" ../../../test/config/enabledModules/incubator
+          composer require --no-update \
+            "gipfl/calendar": "dev-master as 99.x-dev" \
+            "gipfl/cli": "dev-master as 99.x-dev" \
+            "gipfl/curl": "dev-master as 99.x-dev" \
+            "gipfl/data-type": "dev-master as 99.x-dev" \
+            "gipfl/db-migration": "dev-master as 99.x-dev" \
+            "gipfl/diff": "dev-master as 99.x-dev" \
+            "gipfl/format": "dev-master as 99.x-dev" \
+            "gipfl/icinga-bundles": "dev-master as 99.x-dev" \
+            "gipfl/icinga-cli-daemon": "dev-master as 99.x-dev" \
+            "gipfl/influxdb": "dev-master as 99.x-dev" \
+            "gipfl/json": "dev-master as 99.x-dev" \
+            "gipfl/linux-health": "dev-master as 99.x-dev" \
+            "gipfl/log": "dev-master as 99.x-dev" \
+            "gipfl/process": "dev-master as 99.x-dev" \
+            "gipfl/protocol-jsonrpc": "dev-master as 99.x-dev" \
+            "gipfl/protocol-netstring": "dev-master as 99.x-dev" \
+            "gipfl/react-utils": "dev-master as 99.x-dev" \
+            "gipfl/simple-daemon": "dev-master as 99.x-dev" \
+            "gipfl/socket": "dev-master as 99.x-dev" \
+            "gipfl/stream": "dev-master as 99.x-dev" \
+            "gipfl/systemd": "dev-master as 99.x-dev" \
+            "gipfl/translation": "dev-master as 99.x-dev" \
+            "gipfl/web": "dev-master as 99.x-dev" \
+            "gipfl/zfdb": "dev-master as 99.x-dev" \
+            "gipfl/zfdbstore": "dev-master as 99.x-dev"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          bin/make-release.sh snapshot
+
+      - name: Run issue 3117 regression test
+        env:
+          ICINGAWEB_LIBDIR: _libraries
+          ICINGAWEB_CONFIGDIR: test/config
+          DIRECTOR_TESTDB_RES: Director MySQL TestDB
+          DIRECTOR_TESTDB: director_test
+          DIRECTOR_TESTDB_HOST: 127.0.0.1
+          DIRECTOR_TESTDB_PORT: ${{ job.services.mysql.ports['3306'] }}
+          DIRECTOR_TESTDB_USER: director_test
+          DIRECTOR_TESTDB_PASSWORD: director_test
+        run: phpunit --bootstrap _icingaweb2/test/php/bootstrap.php test/php/library/Director/Form/ServiceSetInheritedVarTest.php
