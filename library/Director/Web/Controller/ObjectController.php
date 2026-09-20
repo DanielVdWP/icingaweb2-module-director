@@ -717,14 +717,20 @@ abstract class ObjectController extends ActionController
     ): ?CustomVariablesForm {
         $isOverrideVars = $host !== null;
         if ($isOverrideVars) {
-            $storedVars = $host->getOverriddenServiceVars($object);
+            $storedVars = $host->getOverriddenServiceVars($object->getObjectName());
         } else {
             $storedVars = $object->getVars();
             unset($storedVars->{'_override_servicevars'});
         }
 
         $vars = json_decode(json_encode($storedVars), true);
-        $inheritedVars = json_decode(json_encode($object->getInheritedVars()), JSON_OBJECT_AS_ARRAY);
+        // When editing per-host service overrides, the service (including
+        // its own values from a Service Set) is the source of inheritance.
+        // getInheritedVars() only sees imported service templates and
+        // omits values configured directly on the Service Set service.
+        $inheritedVars = json_decode(json_encode(
+            $isOverrideVars ? $object->getResolvedVars() : $object->getInheritedVars()
+        ), JSON_OBJECT_AS_ARRAY);
         $origins = $object->getOriginsVars();
 
         $objectProperties = $this->getObjectCustomProperties(
@@ -748,9 +754,11 @@ abstract class ObjectController extends ActionController
                 $row['value'] = $vars[$row['key_name']];
             }
 
-            if (isset($inheritedVars[$row['key_name']]) && ! $isOverrideVars) {
+            if (isset($inheritedVars[$row['key_name']])) {
                 $row['inherited'] = $inheritedVars[$row['key_name']];
-                $row['inherited_from'] = $origins->{$row['key_name']};
+                $row['inherited_from'] = $isOverrideVars
+                    ? $object->getObjectName()
+                    : $origins->{$row['key_name']};
             }
 
             $result[] = $row;
