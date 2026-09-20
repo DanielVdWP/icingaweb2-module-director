@@ -60,6 +60,11 @@ class ServiceSetRequiredVarsFormTest extends BaseTestCase
             'The existing service-set value must be shown as inherited, not as an empty required field'
         );
         $this->assertStringContainsString('Powershell Script', $html);
+        $this->assertStringNotContainsString(
+            'aria-required="true" name="properties[0][var]" required',
+            $html,
+            'An inherited required value must not be required again as a host-specific override'
+        );
 
         // Merely viewing a default must not create a host-level override.
         $this->assertSame([], (array) $host->getOverriddenServiceVars($service->getObjectName()));
