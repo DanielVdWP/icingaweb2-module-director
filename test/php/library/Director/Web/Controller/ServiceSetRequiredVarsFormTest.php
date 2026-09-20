@@ -62,7 +62,7 @@ class ServiceSetRequiredVarsFormTest extends BaseTestCase
         $this->assertStringContainsString('Powershell Script', $html);
 
         // Merely viewing a default must not create a host-level override.
-        $this->assertSame((object) [], $host->getOverriddenServiceVars($service->getObjectName()));
+        $this->assertSame([], (array) $host->getOverriddenServiceVars($service->getObjectName()));
     }
 
     public function testHostOverrideWinsOverServiceSetDefault(): void
