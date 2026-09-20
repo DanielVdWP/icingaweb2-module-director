@@ -129,6 +129,7 @@ class HostGroupCloneAccessRegressionTest extends BaseTestCase
         $sql = $db->getDbAdapter();
         $scopeName = '___TEST___3092_scope';
         $tenantName = '___TEST___3092_tenant_depends_on_scope';
+        $networkName = '___TEST___3092_chain_network';
         $scope = IcingaHostGroup::create([
             'object_name' => $scopeName,
             'object_type' => 'object',
@@ -138,15 +139,26 @@ class HostGroupCloneAccessRegressionTest extends BaseTestCase
             'object_name' => $tenantName,
             'object_type' => 'object',
         ], $db);
+        $network = IcingaHostGroup::create([
+            'object_name' => $networkName,
+            'object_type' => 'object',
+        ], $db);
         $template = IcingaHost::create([
             'object_name' => '___TEST___3092_scope_template',
             'object_type' => 'template',
             'vars.tenant' => '___TEST___3092_customer',
         ], $db);
+        $networkTemplate = IcingaHost::create([
+            'object_name' => '___TEST___3092_chain_network_template',
+            'object_type' => 'template',
+        ], $db);
         $source = IcingaHost::create([
             'object_name' => '___TEST___3092_scope_source',
             'object_type' => 'object',
-            'imports' => '___TEST___3092_scope_template',
+            'imports' => [
+                '___TEST___3092_scope_template',
+                '___TEST___3092_chain_network_template',
+            ],
         ], $db);
         $clone = null;
 
@@ -161,11 +173,16 @@ class HostGroupCloneAccessRegressionTest extends BaseTestCase
 
         $scope->store();
         $tenant->store();
+        $network->store();
+        $template->setGroups($tenantName);
         $template->store();
+        $networkTemplate->setGroups($networkName);
+        $networkTemplate->store();
 
         try {
             $source->store();
             $this->assertTrue($inGroup($source, $scope));
+            $this->assertTrue($inGroup($source, $network));
             $this->assertFalse($inGroup($source, $tenant));
 
             $tenant->set('assign_filter', 'host.groups=%22___TEST___3092_scope%2A%22');
@@ -194,7 +211,22 @@ class HostGroupCloneAccessRegressionTest extends BaseTestCase
             $form->setObject($source)->onSuccess();
             $clone = IcingaHost::load('___TEST___3092_scope_clone', $db);
             $this->assertTrue($inGroup($clone, $scope), 'The clone has already been assigned to the scope group');
+            $this->assertTrue($inGroup($clone, $network), 'The clone must retain the Network hostgroup');
+            $auth = $this->getMockBuilder(Auth::class)
+                ->disableOriginalConstructor()
+                ->onlyMethods(['getRestrictions'])
+                ->getMock();
+            $auth->method('getRestrictions')->willReturnCallback(
+                static function ($type) use ($tenantName) {
+                    return $type === Restriction::FILTER_HOSTGROUPS ? [$tenantName] : [];
+                }
+            );
+            $restriction = new HostgroupRestriction($db, $auth);
             $visibleBeforeRefresh = $inGroup($clone, $tenant);
+            $this->assertTrue(
+                $restriction->allowsHost($clone),
+                'A tenant-restricted user must have access to the GUI clone immediately'
+            );
 
             // Simulate the CLI maintenance workaround for this resolver:
             // preload all objects before forcing the refresh. On current
@@ -213,10 +245,11 @@ class HostGroupCloneAccessRegressionTest extends BaseTestCase
                 $clone->delete();
             }
             $source->delete();
+            $networkTemplate->delete();
             $template->delete();
+            $network->delete();
             $tenant->delete();
             $scope->delete();
         }
     }
-
 }
