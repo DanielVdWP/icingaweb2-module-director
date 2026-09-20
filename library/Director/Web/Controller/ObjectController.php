@@ -717,7 +717,7 @@ abstract class ObjectController extends ActionController
     ): ?CustomVariablesForm {
         $isOverrideVars = $host !== null;
         if ($isOverrideVars) {
-            $storedVars = $host->getOverriddenServiceVars($object);
+            $storedVars = $host->getOverriddenServiceVars($object->getObjectName());
         } else {
             $storedVars = $object->getVars();
             unset($storedVars->{'_override_servicevars'});
