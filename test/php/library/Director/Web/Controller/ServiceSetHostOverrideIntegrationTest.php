@@ -87,7 +87,7 @@ class ServiceSetHostOverrideIntegrationTest extends BaseTestCase
             $form->ensureAssembled();
             $dictionary = $form->getElement('properties');
             /** @var DictionaryItem $item */
-            $item = $dictionary->getElement('0');
+            $item = $dictionary->getElement('0')->ensureAssembled();
             $this->assertSame(
                 'C:\\Checks\\health.ps1',
                 $item->getElement('inherited')->getValue(),
