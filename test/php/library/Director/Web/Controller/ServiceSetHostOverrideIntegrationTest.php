@@ -13,10 +13,13 @@ use Icinga\Module\Director\Objects\IcingaHost;
 use Icinga\Module\Director\Objects\IcingaService;
 use Icinga\Module\Director\Objects\IcingaServiceSet;
 use Icinga\Module\Director\Test\BaseTestCase;
+use Icinga\Module\Director\Web\Controller\ActionController;
+use Icinga\Module\Director\Web\Controller\ObjectController;
+use Icinga\Web\UrlParams;
+use Icinga\Module\Director\Controllers\HostController;
 use Ramsey\Uuid\Uuid;
 use ReflectionClass;
-
-require_once __DIR__ . '/ServiceSetOverrideTestController.php';
+use ReflectionProperty;
 
 /**
  * Exercise the real Director host override form with stored Host, Service Set,
@@ -71,16 +74,15 @@ class ServiceSetHostOverrideIntegrationTest extends BaseTestCase
                 'required' => 'y',
             ]);
 
-            $controller = (new ReflectionClass(ServiceSetOverrideTestController::class))
-                ->newInstanceWithoutConstructor();
-            $controller->formProperties = [[
-                'key_name' => $key,
-                'uuid' => $property->get('uuid'),
-                'value_type' => 'string',
-                'label' => 'Powershell Script',
-                'required' => true,
-                'allow_removal' => false,
-            ]];
+            // Run the production controller's own property/attachment DB query:
+            // this is not a mocked or precomputed custom-property list.
+            $controller = (new ReflectionClass(HostController::class))->newInstanceWithoutConstructor();
+            (new ReflectionProperty(ActionController::class, 'db'))->setValue($controller, $db);
+            (new ReflectionProperty(ObjectController::class, 'object'))->setValue($controller, $host);
+            (new ReflectionProperty(ActionController::class, 'params'))->setValue(
+                $controller,
+                (new UrlParams())->set('service', $member->getObjectName())
+            );
 
             $form = $controller->prepareCustomPropertiesForm($member, $host, [], [], $set);
             $form->setServiceSet($set)->setHostForService($host);
