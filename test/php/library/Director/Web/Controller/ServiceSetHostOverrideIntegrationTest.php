@@ -47,11 +47,19 @@ class ServiceSetHostOverrideIntegrationTest extends BaseTestCase
             'vars' => [$key => 'C:\\Checks\\health.ps1'],
         ], $db);
         $member = null;
+        $assignedSet = null;
         $property = null;
 
         try {
             $host->store();
             $set->store();
+            $assignedSet = IcingaServiceSet::create([
+                'object_name' => $set->getObjectName(),
+                'object_type' => 'object',
+                'host_id' => $host->get('id'),
+            ], $db);
+            $assignedSet->setImports($set->getObjectName());
+            $assignedSet->store();
             $member = IcingaService::create([
                 'object_name' => '___TEST___3117_service_' . $suffix,
                 'object_type' => 'apply',
@@ -84,7 +92,7 @@ class ServiceSetHostOverrideIntegrationTest extends BaseTestCase
                 (new UrlParams())->set('service', $member->getObjectName())
             );
 
-            $form = $controller->prepareCustomPropertiesForm($member, $host, [], [], $set);
+            $form = $controller->prepareCustomPropertiesForm($member, $host, [], [], $assignedSet);
             $form->setServiceSet($set)->setHostForService($host);
             $form->ensureAssembled();
             $dictionary = $form->getElement('properties');
@@ -100,12 +108,20 @@ class ServiceSetHostOverrideIntegrationTest extends BaseTestCase
                 'An inherited value must satisfy the required field without a host override'
             );
             $this->assertEmpty((array) $host->getOverriddenServiceVars($member->getObjectName()));
+
+            // The unchanged inherited required value must survive an actual DB store.
+            self::callMethod($form, 'persistPropertyChanges', []);
+            $reloadedHost = IcingaHost::load($host->getObjectName(), $db);
+            $this->assertEmpty((array) $reloadedHost->getOverriddenServiceVars($member->getObjectName()));
         } finally {
             if ($member !== null && $member->hasBeenLoadedFromDb()) {
                 $member->delete();
             }
             if ($property !== null && $property->hasBeenLoadedFromDb()) {
                 $property->delete();
+            }
+            if ($assignedSet !== null && $assignedSet->hasBeenLoadedFromDb()) {
+                $assignedSet->delete();
             }
             if ($set->hasBeenLoadedFromDb()) {
                 $set->delete();
