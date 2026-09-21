@@ -788,11 +788,14 @@ abstract class ObjectController extends ActionController
     ): array {
         foreach ($properties as &$row) {
             $key = $row['key_name'];
-            if (array_key_exists($key, $overrides)) {
-                $row['value'] = $overrides[$key];
-            } elseif (array_key_exists($key, $baseVars)) {
+            if (array_key_exists($key, $baseVars)) {
                 $row['inherited'] = $baseVars[$key];
                 $row['inherited_from'] = $origin;
+            }
+
+            if (array_key_exists($key, $overrides)) {
+                $row['value'] = $overrides[$key];
+            } else {
                 unset($row['value']);
             }
         }
