@@ -713,11 +713,12 @@ abstract class ObjectController extends ActionController
         IcingaObject $object,
         ?IcingaHost $host = null,
         array $addedVarUuids = [],
-        array $requiredVarUuids = []
+        array $requiredVarUuids = [],
+        ?IcingaServiceSet $serviceSet = null
     ): ?CustomVariablesForm {
         $isOverrideVars = $host !== null;
         if ($isOverrideVars) {
-            $storedVars = $host->getOverriddenServiceVars($object);
+            $storedVars = $host->getOverriddenServiceVars($object->getObjectName());
         } else {
             $storedVars = $object->getVars();
             unset($storedVars->{'_override_servicevars'});
@@ -742,23 +743,63 @@ abstract class ObjectController extends ActionController
             return $form;
         }
 
-        $result = [];
-        foreach ($objectProperties as $row) {
-            if (array_key_exists($row['key_name'], $vars)) {
-                $row['value'] = $vars[$row['key_name']];
-            }
+        if ($isOverrideVars && $serviceSet !== null) {
+            // A Service Set's member values are the base values on the host,
+            // not host-specific overrides. Preserve this distinction in the form.
+            $baseVars = json_decode(json_encode($object->getResolvedVars()), true);
+            $setVars = json_decode(json_encode($serviceSet->getResolvedVars()), true);
+            $baseVars = array_replace($baseVars, $setVars);
+            $result = $this->mergeServiceSetOverrideValues(
+                array_values($objectProperties),
+                $vars,
+                $baseVars,
+                $serviceSet->getObjectName()
+            );
+        } else {
+            $result = [];
+            foreach ($objectProperties as $row) {
+                if (array_key_exists($row['key_name'], $vars)) {
+                    $row['value'] = $vars[$row['key_name']];
+                }
 
-            if (isset($inheritedVars[$row['key_name']]) && ! $isOverrideVars) {
-                $row['inherited'] = $inheritedVars[$row['key_name']];
-                $row['inherited_from'] = $origins->{$row['key_name']};
-            }
+                if (isset($inheritedVars[$row['key_name']]) && ! $isOverrideVars) {
+                    $row['inherited'] = $inheritedVars[$row['key_name']];
+                    $row['inherited_from'] = $origins->{$row['key_name']};
+                }
 
-            $result[] = $row;
+                $result[] = $row;
+            }
         }
 
         $form->load($result);
 
         return $form;
+    }
+
+    /**
+     * Present Service Set values as inherited while keeping host overrides separate.
+     * An existing base value satisfies a required field without creating an override.
+     */
+    protected function mergeServiceSetOverrideValues(
+        array $properties,
+        array $overrides,
+        array $baseVars,
+        string $origin
+    ): array {
+        foreach ($properties as &$row) {
+            $key = $row['key_name'];
+            if (array_key_exists($key, $overrides)) {
+                $row['value'] = $overrides[$key];
+            } elseif (array_key_exists($key, $baseVars)) {
+                $row['inherited'] = $baseVars[$key];
+                $row['inherited_from'] = $origin;
+                unset($row['value']);
+            }
+        }
+
+        unset($row);
+
+        return $properties;
     }
 
     /**
