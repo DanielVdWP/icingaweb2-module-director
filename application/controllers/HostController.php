@@ -697,7 +697,7 @@ class HostController extends ObjectController
             $this->content()->add($deactivateForm);
         } else {
             $this->controls()->prepend($deactivateForm);
-            $form = $this->prepareCustomPropertiesForm($originalService, $host);
+            $form = $this->prepareCustomPropertiesForm($originalService, $host, [], [], $set);
             $this->customVarFormOnSubmit($form, $host);
             $form->setServiceSet($setTemplate);
             $form->setHostForService($host);
