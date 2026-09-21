@@ -29,7 +29,7 @@ class ServiceSetOverrideInheritedValuesTest extends BaseTestCase
         $this->assertSame('Service Set: Windows', $result[0]['inherited_from']);
         $this->assertArrayNotHasKey('value', $result[0]);
         $this->assertSame('-Verbose', $result[1]['value']);
-        $this->assertArrayNotHasKey('inherited', $result[1]);
+        $this->assertSame('-Quiet', $result[1]['inherited']);
     }
 
     public function testExistingHostOverrideTakesPrecedenceAndZeroIsRetained(): void
@@ -45,7 +45,7 @@ class ServiceSetOverrideInheritedValuesTest extends BaseTestCase
         );
 
         $this->assertSame('override.ps1', $result[0]['value']);
-        $this->assertArrayNotHasKey('inherited', $result[0]);
+        $this->assertSame('default.ps1', $result[0]['inherited']);
         $this->assertSame('0', $result[1]['inherited']);
         $this->assertArrayNotHasKey('value', $result[1]);
     }
