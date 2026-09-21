@@ -6,17 +6,17 @@
 namespace Tests\Icinga\Module\Director\Web\Controller;
 
 use Icinga\Application\Config;
-use Icinga\Module\Director\Controllers\HostController;
 use Icinga\Module\Director\Db\DbUtil;
 use Icinga\Module\Director\Forms\DictionaryElements\DictionaryItem;
 use Icinga\Module\Director\Objects\DirectorProperty;
 use Icinga\Module\Director\Objects\IcingaHost;
-use Icinga\Module\Director\Objects\IcingaObject;
 use Icinga\Module\Director\Objects\IcingaService;
 use Icinga\Module\Director\Objects\IcingaServiceSet;
 use Icinga\Module\Director\Test\BaseTestCase;
 use Ramsey\Uuid\Uuid;
 use ReflectionClass;
+
+require_once __DIR__ . '/ServiceSetOverrideTestController.php';
 
 /**
  * Exercise the real Director host override form with stored Host, Service Set,
@@ -112,19 +112,5 @@ class ServiceSetHostOverrideIntegrationTest extends BaseTestCase
                 $host->delete();
             }
         }
-    }
-}
-
-class ServiceSetOverrideTestController extends HostController
-{
-    public array $formProperties = [];
-
-    protected function getObjectCustomProperties(
-        IcingaObject $object,
-        bool $isOverrideVars = false,
-        array $addedVarUuids = [],
-        array $requiredVarUuids = []
-    ): array {
-        return $this->formProperties;
     }
 }
